@@ -34,18 +34,16 @@ export default function App() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const savedStreak = Number(localStorage.getItem('studyquest_streak') || 1);
-      const savedScore = Number(localStorage.getItem('studyquest_score') || 0);
-      setStreak(savedStreak);
-      setScore(savedScore);
-      localStorage.setItem('studyquest_streak', String(savedStreak));
-
       try {
+        const settings = await dbService.getUserSettings();
+        setStreak(settings.streak);
+        setScore(settings.score);
+
         const progress = await dbService.getUserProgress();
         setProgressHistory(progress);
         setAdaptiveProfile(buildAdaptiveProfile(progress));
       } catch (err) {
-        console.error('Could not load adaptive profile', err);
+        console.error('Could not load user data:', err);
       }
     };
 
@@ -96,8 +94,8 @@ export default function App() {
         createdAt: new Date().toISOString(),
         importedAt: new Date().toISOString(),
         title: importedSet.title || 'Set importado',
-        sourceLabel: importedSet.sourceLabel || 'Pack StudyQuest',
-        sourceText: importedSet.sourceText || importedSet.summary || 'Pack importado desde StudyQuest.',
+        sourceLabel: importedSet.sourceLabel || 'Pack HumanLearning',
+        sourceText: importedSet.sourceText || importedSet.summary || 'Pack importado desde HumanLearning.',
         timerLimit: importedSet.timerLimit || timerForDifficulty(importedSet.difficulty || 'Medio', adaptiveProfile.timerLimit),
       });
 
@@ -105,7 +103,7 @@ export default function App() {
       setView('lobby');
     } catch (err) {
       console.error('Error importing pack:', err);
-      window.alert('No pude importar ese pack. Revisa que sea un archivo StudyQuest valido.');
+      window.alert('No pude importar ese pack. Revisa que sea un archivo HumanLearning valido.');
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +116,9 @@ export default function App() {
     const nextDifficulty = nextDifficultyFromOutcome(activeSet?.difficulty, accuracy);
 
     setScore(newScore);
-    localStorage.setItem('studyquest_score', String(newScore));
+    
+    const settings = await dbService.getUserSettings();
+    await dbService.updateUserSettings({ ...settings, score: newScore });
 
     await dbService.saveUserProgress({
       setId: activeSet.id,
@@ -270,8 +270,8 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>StudyQuest - Hackathon TIC 2026</span>
-        <span>Fuente a juegos adaptativos de aprendizaje</span>
+        <span>HumanLearning - Hackathon TIC 2026</span>
+        <span>Aprendé, creá y crecé</span>
       </footer>
     </div>
   );

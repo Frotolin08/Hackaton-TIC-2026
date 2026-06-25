@@ -20,6 +20,8 @@ export const dbService = {
   isSupabaseConnected: () => supabase !== null,
 
   saveGameSet: async (gameSet) => {
+    if (!supabase) throw new Error('Supabase not connected');
+    
     const id = gameSet.id || crypto.randomUUID();
     const preparedSet = {
       ...gameSet,
@@ -27,78 +29,54 @@ export const dbService = {
       createdAt: gameSet.createdAt || new Date().toISOString(),
     };
 
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('game_sets')
-          .insert([preparedSet])
-          .select();
+    const { data, error } = await supabase
+      .from('game_sets')
+      .insert([preparedSet])
+      .select();
 
-        if (error) throw error;
-        return data[0];
-      } catch (err) {
-        console.error('Supabase saveGameSet error, falling back to localStorage:', err);
-      }
-    }
-
-    return saveToLocal('game_sets', preparedSet);
+    if (error) throw error;
+    return data[0];
   },
 
   getGameSets: async () => {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('game_sets')
-          .select('*')
-          .order('createdAt', { ascending: false });
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { data, error } = await supabase
+      .from('game_sets')
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-        if (error) throw error;
-        return data || [];
-      } catch (err) {
-        console.error('Supabase getGameSets error, falling back to localStorage:', err);
-      }
-    }
-
-    return getFromLocal('game_sets');
+    if (error) throw error;
+    return data || [];
   },
 
   getGameSetById: async (id) => {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('game_sets')
-          .select('*')
-          .eq('id', id)
-          .single();
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { data, error } = await supabase
+      .from('game_sets')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.error('Supabase getGameSetById error, falling back to localStorage:', err);
-      }
-    }
-
-    return getFromLocal('game_sets').find((set) => set.id === id) || null;
+    if (error) throw error;
+    return data;
   },
 
   deleteGameSet: async (id) => {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('game_sets')
-          .delete()
-          .eq('id', id);
-        if (error) throw error;
-        return true;
-      } catch (err) {
-        console.error('Supabase deleteGameSet error, falling back to localStorage:', err);
-      }
-    }
-
-    return deleteFromLocal('game_sets', id);
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { error } = await supabase
+      .from('game_sets')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
   },
 
   saveUserProgress: async (progressItem) => {
+    if (!supabase) throw new Error('Supabase not connected');
+    
     const id = progressItem.id || crypto.randomUUID();
     const preparedProgress = {
       ...progressItem,
@@ -106,90 +84,74 @@ export const dbService = {
       timestamp: progressItem.timestamp || new Date().toISOString(),
     };
 
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('user_progress')
-          .insert([preparedProgress])
-          .select();
+    const { data, error } = await supabase
+      .from('user_progress')
+      .insert([preparedProgress])
+      .select();
 
-        if (error) throw error;
-        return data[0];
-      } catch (err) {
-        console.error('Supabase saveUserProgress error, falling back to localStorage:', err);
-      }
-    }
-
-    return saveToLocal('user_progress', preparedProgress);
+    if (error) throw error;
+    return data[0];
   },
 
   getUserProgress: async () => {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('user_progress')
-          .select('*')
-          .order('timestamp', { ascending: false });
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { data, error } = await supabase
+      .from('user_progress')
+      .select('*')
+      .order('timestamp', { ascending: false });
 
-        if (error) throw error;
-        return data || [];
-      } catch (err) {
-        console.error('Supabase getUserProgress error, falling back to localStorage:', err);
-      }
-    }
-
-    return getFromLocal('user_progress');
+    if (error) throw error;
+    return data || [];
   },
 
   clearAllProgress: async () => {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('user_progress')
-          .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000');
-        if (error) throw error;
-      } catch (err) {
-        console.error('Supabase clearAllProgress error:', err);
-      }
-    }
-
-    localStorage.removeItem('studyquest_user_progress');
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { error } = await supabase
+      .from('user_progress')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) throw error;
     return true;
+  },
+
+  getUserSettings: async () => {
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        const { data: newData, error: insertError } = await supabase
+          .from('user_settings')
+          .insert([{ streak: 1, score: 0 }])
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        return newData;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  updateUserSettings: async (settings) => {
+    if (!supabase) throw new Error('Supabase not connected');
+    
+    const { data, error } = await supabase
+      .from('user_settings')
+      .update({ ...settings, updated_at: new Date().toISOString() })
+      .eq('id', settings.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 };
 
-function getFromLocal(key) {
-  const storageKey = `studyquest_${key}`;
-  const data = localStorage.getItem(storageKey);
-  if (!data) return [];
-
-  try {
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    console.warn(`Invalid local data for ${storageKey}; resetting it.`, err);
-    localStorage.removeItem(storageKey);
-    return [];
-  }
-}
-
-function saveToLocal(key, item) {
-  const items = getFromLocal(key);
-  const index = items.findIndex((existing) => existing.id === item.id);
-
-  if (index !== -1) {
-    items[index] = item;
-  } else {
-    items.unshift(item);
-  }
-
-  localStorage.setItem(`studyquest_${key}`, JSON.stringify(items));
-  return item;
-}
-
-function deleteFromLocal(key, id) {
-  const filtered = getFromLocal(key).filter((item) => item.id !== id);
-  localStorage.setItem(`studyquest_${key}`, JSON.stringify(filtered));
-  return true;
-}

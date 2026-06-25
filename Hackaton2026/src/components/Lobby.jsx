@@ -4,7 +4,7 @@ import { copyStudyPackSummary, downloadStudyPack } from '../services/exportStudy
 const MODE_META = {
   multiple_choice: {
     title: 'Opcion multiple',
-    mark: 'A/B/C',
+    mark: 'ABC',
     description: 'Preguntas con distractores para comprobar comprension y velocidad.',
     accent: 'mode-violet',
   },

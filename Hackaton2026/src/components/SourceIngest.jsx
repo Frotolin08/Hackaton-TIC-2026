@@ -8,26 +8,14 @@ async function fetchUrlContents(rawUrl) {
     throw new Error('Only HTTP and HTTPS URLs are supported');
   }
 
-  const encodedUrl = encodeURIComponent(parsedUrl.toString());
-  const endpoints = [
-    `/api/scrape?url=${encodedUrl}`,
-    `https://api.allorigins.win/get?url=${encodedUrl}`,
-  ];
-
-  let lastError;
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint);
-      if (!response.ok) throw new Error(`URL fetch failed: ${response.status}`);
-      const data = await response.json();
-      if (data?.contents) return data.contents;
-      throw new Error('Response did not include contents');
-    } catch (err) {
-      lastError = err;
-    }
+  const response = await fetch(`/api/scrape?url=${parsedUrl.toString()}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `URL fetch failed: ${response.status}`);
   }
-
-  throw lastError || new Error('Could not fetch URL');
+  const data = await response.json();
+  if (!data?.contents) throw new Error('Response did not include contents');
+  return data.contents;
 }
 
 function extractReadableTextFromHtml(html) {
@@ -212,7 +200,7 @@ export default function SourceIngest({ onGenerate, onImportPack, isLoading = fal
           }}
           rows={12}
           className="source-textarea"
-          placeholder="Pega apuntes, un articulo, una transcripcion o el material de clase. StudyQuest extrae conceptos y crea juegos de practica."
+          placeholder="Pega apuntes, un articulo, una transcripcion o el material de clase. HumanLearning extrae conceptos y crea juegos de practica."
         />
       )}
 
@@ -249,11 +237,11 @@ export default function SourceIngest({ onGenerate, onImportPack, isLoading = fal
 
       {activeTab === 'pack' && (
         <div className="source-panel">
-          <label htmlFor="source-pack">Importa un pack StudyQuest exportado</label>
+          <label htmlFor="source-pack">Importa un pack HumanLearning exportado</label>
           <input
             id="source-pack"
             type="file"
-            accept="application/json,.json,.studyquest.json"
+            accept="application/json,.json,.humanlearning.json"
             onChange={handlePackUpload}
             disabled={importingPack}
           />

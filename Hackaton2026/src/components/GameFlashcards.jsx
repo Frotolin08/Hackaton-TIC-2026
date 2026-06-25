@@ -84,31 +84,31 @@ export default function GameFlashcards({ cards = [], onGameFinished }) {
 
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-col gap-2 bg-zinc-950/60 border border-zinc-900 rounded-xl p-4">
+      <div className="flex flex-col gap-2 bg-white/80 border border-gray-200 rounded-xl p-4">
         <div className="flex justify-between items-center text-xs font-bold">
-          <span className="text-zinc-400">Tarjetas por dominar: <span className="text-violet-400 font-black">{remainingCount}</span></span>
-          <span className="text-yellow-400">{score} pts</span>
+          <span className="text-gray-600">Tarjetas por dominar: <span className="text-orange-500 font-black">{remainingCount}</span></span>
+          <span className="text-orange-500">{score} pts</span>
         </div>
-        <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800">
-          <div className="bg-gradient-to-r from-violet-600 to-blue-500 h-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden border border-gray-300">
+          <div className="bg-gradient-to-r from-orange-500 to-yellow-500 h-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
       <button type="button" className="perspective-1000 w-full h-96 cursor-pointer relative text-left" onClick={() => setIsFlipped((value) => !value)}>
         <div className={`w-full h-full duration-500 transform-style-3d relative transition-all ${isFlipped ? 'rotate-y-180' : ''}`}>
-          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel border border-zinc-800 flex flex-col justify-between p-8 backface-hidden shadow-2xl">
+          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel border border-gray-200 flex flex-col justify-between p-8 backface-hidden shadow-2xl">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pregunta / termino</span>
-              <span className="text-sm font-bold text-yellow-400">Hint</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pregunta / termino</span>
+              <span className="text-sm font-bold text-orange-500">Hint</span>
             </div>
 
             <div className="text-center my-auto flex flex-col gap-4">
-              <h3 className="text-2xl md:text-3xl font-black font-display text-white leading-relaxed px-4">
+              <h3 className="text-2xl md:text-3xl font-black font-display text-gray-900 leading-relaxed px-4">
                 {activeItem.data.front}
               </h3>
 
               {showHint ? (
-                <span className="text-xs text-violet-400 font-bold bg-violet-950/40 px-3 py-1.5 rounded-lg border border-violet-900/40 w-fit mx-auto animate-fade-in">
+                <span className="text-xs text-orange-600 font-bold bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200 w-fit mx-auto animate-fade-in">
                   Pista: {activeItem.data.hint || 'No hay pistas para esta tarjeta'}
                 </span>
               ) : (
@@ -125,31 +125,31 @@ export default function GameFlashcards({ cards = [], onGameFinished }) {
                       setShowHint(true);
                     }
                   }}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 font-semibold underline w-fit mx-auto cursor-pointer"
+                  className="text-xs text-gray-500 hover:text-gray-700 font-semibold underline w-fit mx-auto cursor-pointer"
                 >
                   Revelar pista
                 </span>
               )}
             </div>
 
-            <div className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="text-center text-[10px] font-bold uppercase tracking-wider text-gray-500">
               Clic para voltear
             </div>
           </div>
 
-          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel border border-violet-500/30 bg-gradient-to-b from-zinc-950/80 to-zinc-900/80 flex flex-col justify-between p-8 backface-hidden rotate-y-180 shadow-2xl">
+          <div className="absolute inset-0 w-full h-full rounded-2xl glass-panel border border-orange-300 bg-gradient-to-b from-white to-gray-50 flex flex-col justify-between p-8 backface-hidden rotate-y-180 shadow-2xl">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Definicion / explicacion</span>
-              <span className="text-sm font-bold text-orange-300">Review</span>
+              <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Definicion / explicacion</span>
+              <span className="text-sm font-bold text-orange-500">Review</span>
             </div>
 
             <div className="text-center my-auto px-4 overflow-y-auto max-h-48 scrollbar-thin">
-              <p className="text-base md:text-lg text-zinc-200 leading-relaxed font-medium">
+              <p className="text-base md:text-lg text-gray-800 leading-relaxed font-medium">
                 {activeItem.data.back}
               </p>
             </div>
 
-            <div className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="text-center text-[10px] font-bold uppercase tracking-wider text-gray-500">
               Clic para volver al frente
             </div>
           </div>
@@ -157,17 +157,17 @@ export default function GameFlashcards({ cards = [], onGameFinished }) {
       </button>
 
       <div className="flex flex-col gap-3">
-        <span className="text-xs font-bold text-center text-zinc-400 uppercase tracking-wider">Que tan bien lo recordaste?</span>
+        <span className="text-xs font-bold text-center text-gray-600 uppercase tracking-wider">Que tan bien lo recordaste?</span>
         <div className="grid grid-cols-3 gap-3">
-          <button onClick={() => handleSelfGrade('again')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-red-950/20 border border-red-800/40 hover:bg-red-950/40 hover:border-red-500 text-red-300 transition-all cursor-pointer shadow hover:scale-[1.02]">
+          <button onClick={() => handleSelfGrade('again')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 transition-all cursor-pointer shadow hover:scale-[1.02]">
             <span className="text-xs font-bold mt-1">Otra vez</span>
             <span className="text-[9px] opacity-60 mt-0.5">Aparece pronto</span>
           </button>
-          <button onClick={() => handleSelfGrade('medium')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-amber-950/20 border border-amber-800/40 hover:bg-amber-950/40 hover:border-amber-500 text-amber-300 transition-all cursor-pointer shadow hover:scale-[1.02]">
+          <button onClick={() => handleSelfGrade('medium')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 text-amber-700 transition-all cursor-pointer shadow hover:scale-[1.02]">
             <span className="text-xs font-bold mt-1">Dificil</span>
             <span className="text-[9px] opacity-60 mt-0.5">Repasar luego</span>
           </button>
-          <button onClick={() => handleSelfGrade('easy')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-emerald-950/20 border border-emerald-800/40 hover:bg-emerald-950/40 hover:border-emerald-500 text-emerald-300 transition-all cursor-pointer shadow hover:scale-[1.02]">
+          <button onClick={() => handleSelfGrade('easy')} className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 transition-all cursor-pointer shadow hover:scale-[1.02]">
             <span className="text-xs font-bold mt-1">Facil</span>
             <span className="text-[9px] opacity-60 mt-0.5">Dominado</span>
           </button>

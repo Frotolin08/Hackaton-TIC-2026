@@ -1,7 +1,7 @@
 ﻿export function buildStudyPack(gameSet, adaptiveProfile) {
   return {
     exportedAt: new Date().toISOString(),
-    app: 'StudyQuest',
+    app: 'HumanLearning',
     version: 1,
     adaptiveProfile: adaptiveProfile ? {
       recommendedDifficulty: adaptiveProfile.recommendedDifficulty,
@@ -19,8 +19,8 @@ export function validateStudyPack(pack) {
     throw new Error('El archivo no tiene un formato valido.');
   }
 
-  if (pack.app !== 'StudyQuest' || !pack.set || typeof pack.set !== 'object') {
-    throw new Error('El archivo no parece ser un pack de StudyQuest.');
+  if (pack.app !== 'HumanLearning' || !pack.set || typeof pack.set !== 'object') {
+    throw new Error('El archivo no parece ser un pack de HumanLearning.');
   }
 
   const set = pack.set;
@@ -41,10 +41,10 @@ export function validateStudyPack(pack) {
     set: {
       ...set,
       title: set.title || 'Set importado',
-      summary: set.summary || 'Pack importado desde StudyQuest.',
+      summary: set.summary || 'Pack importado desde HumanLearning.',
       difficulty: set.difficulty || pack.adaptiveProfile?.recommendedDifficulty || 'Medio',
       levelMode: set.levelMode || 'fixed',
-      sourceLabel: set.sourceLabel || 'Pack StudyQuest',
+      sourceLabel: set.sourceLabel || 'Pack HumanLearning',
       questions: {
         multiple_choice: questions.multiple_choice || [],
         flashcards: questions.flashcards || [],
@@ -87,7 +87,7 @@ export function buildStudyPackMarkdown(gameSet, adaptiveProfile) {
   ];
 
   const lines = [
-    `# ${gameSet?.title || 'StudyQuest Set'}`,
+    `# ${gameSet?.title || 'HumanLearning Set'}`,
     '',
     gameSet?.summary || 'Set de estudio generado desde una fuente.',
     '',
@@ -115,7 +115,7 @@ export function downloadStudyPack(gameSet, adaptiveProfile) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${slugify(gameSet?.title || 'studyquest-set')}.studyquest.json`;
+  link.download = `${slugify(gameSet?.title || 'humanlearning-set')}.humanlearning.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -150,6 +150,6 @@ function slugify(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 60) || 'studyquest-set';
+    .slice(0, 60) || 'humanlearning-set';
 }
 

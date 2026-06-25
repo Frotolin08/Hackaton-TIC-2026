@@ -15,10 +15,10 @@ export default function Navbar({
   return (
     <nav className="topbar">
       <button className="brand-lockup" onClick={onHome} type="button">
-        <span>SQ</span>
+        <img src="/logo.svg.svg" alt="HumanLearning Logo" className="brand-logo" />
         <div>
-          <strong>StudyQuest</strong>
-          <small>Fuente a juegos adaptativos</small>
+          <strong>HumanLearning</strong>
+          <small>Aprendé, creá y crecé</small>
         </div>
       </button>
 

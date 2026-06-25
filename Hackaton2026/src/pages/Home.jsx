@@ -14,7 +14,7 @@ export default function Home({ onGenerate, onImportPack, isLoading, adaptiveProf
     <div className="home-shell">
       <section className="hero-panel">
         <div className="hero-copy">
-          <p className="eyebrow">StudyQuest Lab</p>
+          <p className="eyebrow">HumanLearning</p>
           <h1>Tu material entra como fuente. Sale como practica inteligente.</h1>
           <p>
             Crea juegos de aprendizaje desde apuntes reales, juega en sesiones cortas y deja que
