@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import { useState } from 'react';
 
 export default function GameTrueFalse({ questions = [], onGameFinished }) {
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -11,77 +11,67 @@ export default function GameTrueFalse({ questions = [], onGameFinished }) {
   const currentQuestion = questions[currentIdx];
 
   const handleSelect = (val) => {
-    if (isAnswered) return;
+    if (isAnswered || !currentQuestion) return;
 
     setSelectedVal(val);
     setIsAnswered(true);
 
     const isCorrect = val === currentQuestion.isTrue;
-
     if (isCorrect) {
-      setCorrectAnswersCount(prev => prev + 1);
-      setScore(prev => prev + 100);
+      setCorrectAnswersCount((prev) => prev + 1);
+      setScore((prev) => prev + 100);
     } else {
-      setWrongQuestions(prev => [...prev, {
+      setWrongQuestions((prev) => [...prev, {
         question: `V/F: "${currentQuestion.statement}"`,
         selectedAnswer: val ? 'Verdadero' : 'Falso',
         correctAnswer: currentQuestion.isTrue ? 'Verdadero' : 'Falso',
-        explanation: currentQuestion.explanation
+        explanation: currentQuestion.explanation,
       }]);
     }
   };
 
   const handleNext = () => {
     if (currentIdx < questions.length - 1) {
-      setCurrentIdx(currentIdx + 1);
+      setCurrentIdx((idx) => idx + 1);
       setSelectedVal(null);
       setIsAnswered(false);
-    } else {
-      onGameFinished({
-        score,
-        correctCount: correctAnswersCount,
-        totalQuestions: questions.length,
-        wrongQuestions,
-        mode: 'true_false'
-      });
+      return;
     }
+
+    onGameFinished({
+      score,
+      correctCount: correctAnswersCount,
+      totalQuestions: questions.length,
+      wrongQuestions,
+      mode: 'true_false',
+    });
   };
 
   if (!currentQuestion) return null;
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 animate-fade-in">
-      
-      {/* HUD Info */}
       <div className="flex justify-between items-center bg-zinc-950/60 border border-zinc-900 rounded-xl px-6 py-3">
-        <span className="text-xs font-bold text-zinc-400">Declaración: <span className="text-white">{currentIdx + 1}/{questions.length}</span></span>
+        <span className="text-xs font-bold text-zinc-400">Declaracion: <span className="text-white">{currentIdx + 1}/{questions.length}</span></span>
         <span className="text-xs font-bold text-zinc-400">Puntaje: <span className="text-yellow-400">{score} pts</span></span>
       </div>
 
-      {/* Main Board */}
       <div className="glass-panel p-8 rounded-2xl border border-zinc-800 flex flex-col gap-6 relative overflow-hidden">
-        
-        {/* Decorative background stripes */}
-        <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-emerald-500 to-red-500"></div>
+        <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-emerald-500 to-red-500" />
 
-        {/* Category badge */}
         {currentQuestion.category && (
           <span className="text-[10px] font-black uppercase tracking-widest text-violet-400 bg-violet-950/40 border border-violet-900/40 px-2.5 py-1 rounded-full w-fit ml-2">
-            ⚖️ {currentQuestion.category}
+            {currentQuestion.category}
           </span>
         )}
 
-        {/* Statement text */}
         <div className="text-center py-6 px-4">
           <p className="text-lg md:text-2xl font-semibold text-zinc-100 leading-relaxed">
             "{currentQuestion.statement}"
           </p>
         </div>
 
-        {/* True / False Buttons */}
         <div className="grid grid-cols-2 gap-4 ml-2">
-          
-          {/* VERDADERO BUTTON */}
           <button
             onClick={() => handleSelect(true)}
             disabled={isAnswered}
@@ -95,11 +85,9 @@ export default function GameTrueFalse({ questions = [], onGameFinished }) {
                 : 'bg-emerald-500/20 border-emerald-500/40 hover:bg-emerald-500/30 text-emerald-300 hover:border-emerald-500'
             }`}
           >
-            <span className="text-2xl">✅</span>
             <span>VERDADERO</span>
           </button>
 
-          {/* FALSO BUTTON */}
           <button
             onClick={() => handleSelect(false)}
             disabled={isAnswered}
@@ -113,46 +101,25 @@ export default function GameTrueFalse({ questions = [], onGameFinished }) {
                 : 'bg-red-500/20 border-red-500/40 hover:bg-red-500/30 text-red-300 hover:border-red-500'
             }`}
           >
-            <span className="text-2xl">❌</span>
             <span>FALSO</span>
           </button>
-
         </div>
 
-        {/* Feedback Overlay */}
         {isAnswered && (
-          <div className={`ml-2 p-5 rounded-xl border animate-fade-in flex flex-col gap-2 ${
-            selectedVal === currentQuestion.isTrue
-              ? 'bg-emerald-950/30 border-emerald-800 text-emerald-300'
-              : 'bg-red-950/30 border-red-800 text-red-300'
-          }`}>
+          <div className={`ml-2 p-5 rounded-xl border animate-fade-in flex flex-col gap-2 ${selectedVal === currentQuestion.isTrue ? 'bg-emerald-950/30 border-emerald-800 text-emerald-300' : 'bg-red-950/30 border-red-800 text-red-300'}`}>
             <div className="flex items-center gap-2 font-bold text-sm">
-              {selectedVal === currentQuestion.isTrue ? (
-                <>
-                  <span>🎉</span>
-                  <span>¡Correcto! Bien juzgado.</span>
-                </>
-              ) : (
-                <>
-                  <span>😢</span>
-                  <span>Incorrecto</span>
-                </>
-              )}
+              {selectedVal === currentQuestion.isTrue ? <span>Correcto. Bien juzgado.</span> : <span>Incorrecto</span>}
             </div>
 
             <p className="text-xs opacity-90 leading-relaxed">
-              <strong>Explicación:</strong> {currentQuestion.explanation}
+              <strong>Explicacion:</strong> {currentQuestion.explanation}
             </p>
 
-            <button
-              onClick={handleNext}
-              className="mt-2 self-end bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs px-6 py-2 rounded-lg transition-all shadow-md shadow-violet-600/20"
-            >
-              {currentIdx === questions.length - 1 ? 'Ver Resultados 🏆' : 'Siguiente Pregunta ➡️'}
+            <button onClick={handleNext} className="mt-2 self-end bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs px-6 py-2 rounded-lg transition-all shadow-md shadow-violet-600/20">
+              {currentIdx === questions.length - 1 ? 'Ver resultados' : 'Siguiente pregunta'}
             </button>
           </div>
         )}
-
       </div>
     </div>
   );

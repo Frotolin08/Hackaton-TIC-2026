@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
-// Intentar leer las variables de entorno de Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -17,20 +16,15 @@ if (supabaseUrl && supabaseAnonKey) {
   console.info('Supabase credentials not found. Falling back to local storage database.');
 }
 
-// Interfaz pública del adaptador
 export const dbService = {
-  // Comprobar si está conectado a Supabase real
-  isSupabaseConnected: () => {
-    return supabase !== null;
-  },
+  isSupabaseConnected: () => supabase !== null,
 
-  // Guardar un Set de Juego generado
   saveGameSet: async (gameSet) => {
     const id = gameSet.id || crypto.randomUUID();
     const preparedSet = {
       ...gameSet,
       id,
-      createdAt: gameSet.createdAt || new Date().toISOString()
+      createdAt: gameSet.createdAt || new Date().toISOString(),
     };
 
     if (supabase) {
@@ -39,19 +33,17 @@ export const dbService = {
           .from('game_sets')
           .insert([preparedSet])
           .select();
-        
+
         if (error) throw error;
         return data[0];
       } catch (err) {
         console.error('Supabase saveGameSet error, falling back to localStorage:', err);
-        return saveToLocal('game_sets', preparedSet);
       }
-    } else {
-      return saveToLocal('game_sets', preparedSet);
     }
+
+    return saveToLocal('game_sets', preparedSet);
   },
 
-  // Obtener todos los sets guardados
   getGameSets: async () => {
     if (supabase) {
       try {
@@ -59,19 +51,17 @@ export const dbService = {
           .from('game_sets')
           .select('*')
           .order('createdAt', { ascending: false });
-        
+
         if (error) throw error;
-        return data;
+        return data || [];
       } catch (err) {
         console.error('Supabase getGameSets error, falling back to localStorage:', err);
-        return getFromLocal('game_sets');
       }
-    } else {
-      return getFromLocal('game_sets');
     }
+
+    return getFromLocal('game_sets');
   },
 
-  // Obtener un set específico por ID
   getGameSetById: async (id) => {
     if (supabase) {
       try {
@@ -80,21 +70,17 @@ export const dbService = {
           .select('*')
           .eq('id', id)
           .single();
-        
+
         if (error) throw error;
         return data;
       } catch (err) {
         console.error('Supabase getGameSetById error, falling back to localStorage:', err);
-        const sets = getFromLocal('game_sets');
-        return sets.find(s => s.id === id) || null;
       }
-    } else {
-      const sets = getFromLocal('game_sets');
-      return sets.find(s => s.id === id) || null;
     }
+
+    return getFromLocal('game_sets').find((set) => set.id === id) || null;
   },
 
-  // Borrar un set de juego
   deleteGameSet: async (id) => {
     if (supabase) {
       try {
@@ -106,20 +92,18 @@ export const dbService = {
         return true;
       } catch (err) {
         console.error('Supabase deleteGameSet error, falling back to localStorage:', err);
-        return deleteFromLocal('game_sets', id);
       }
-    } else {
-      return deleteFromLocal('game_sets', id);
     }
+
+    return deleteFromLocal('game_sets', id);
   },
 
-  // Guardar progreso del usuario
   saveUserProgress: async (progressItem) => {
     const id = progressItem.id || crypto.randomUUID();
     const preparedProgress = {
       ...progressItem,
       id,
-      timestamp: new Date().toISOString()
+      timestamp: progressItem.timestamp || new Date().toISOString(),
     };
 
     if (supabase) {
@@ -128,19 +112,17 @@ export const dbService = {
           .from('user_progress')
           .insert([preparedProgress])
           .select();
-        
+
         if (error) throw error;
         return data[0];
       } catch (err) {
         console.error('Supabase saveUserProgress error, falling back to localStorage:', err);
-        return saveToLocal('user_progress', preparedProgress);
       }
-    } else {
-      return saveToLocal('user_progress', preparedProgress);
     }
+
+    return saveToLocal('user_progress', preparedProgress);
   },
 
-  // Obtener progreso del usuario
   getUserProgress: async () => {
     if (supabase) {
       try {
@@ -148,60 +130,66 @@ export const dbService = {
           .from('user_progress')
           .select('*')
           .order('timestamp', { ascending: false });
-        
+
         if (error) throw error;
-        return data;
+        return data || [];
       } catch (err) {
         console.error('Supabase getUserProgress error, falling back to localStorage:', err);
-        return getFromLocal('user_progress');
       }
-    } else {
-      return getFromLocal('user_progress');
     }
+
+    return getFromLocal('user_progress');
   },
 
-  // Limpiar todo el progreso
   clearAllProgress: async () => {
     if (supabase) {
       try {
         const { error } = await supabase
           .from('user_progress')
           .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000'); // delete all
+          .neq('id', '00000000-0000-0000-0000-000000000000');
         if (error) throw error;
-        return true;
       } catch (err) {
         console.error('Supabase clearAllProgress error:', err);
       }
     }
+
     localStorage.removeItem('studyquest_user_progress');
     return true;
-  }
+  },
 };
 
-// --- HELPERS LOCALSTORAGE ---
-
 function getFromLocal(key) {
-  const data = localStorage.getItem(`studyquest_${key}`);
-  return data ? JSON.parse(data) : [];
+  const storageKey = `studyquest_${key}`;
+  const data = localStorage.getItem(storageKey);
+  if (!data) return [];
+
+  try {
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn(`Invalid local data for ${storageKey}; resetting it.`, err);
+    localStorage.removeItem(storageKey);
+    return [];
+  }
 }
 
 function saveToLocal(key, item) {
   const items = getFromLocal(key);
-  // Reemplazar si ya existe, si no agregar
-  const index = items.findIndex(i => i.id === item.id);
+  const index = items.findIndex((existing) => existing.id === item.id);
+
   if (index !== -1) {
     items[index] = item;
   } else {
-    items.unshift(item); // Agregar al principio
+    items.unshift(item);
   }
+
   localStorage.setItem(`studyquest_${key}`, JSON.stringify(items));
   return item;
 }
 
 function deleteFromLocal(key, id) {
-  const items = getFromLocal(key);
-  const filtered = items.filter(i => i.id !== id);
+  const filtered = getFromLocal(key).filter((item) => item.id !== id);
   localStorage.setItem(`studyquest_${key}`, JSON.stringify(filtered));
   return true;
 }

@@ -1,156 +1,331 @@
-import React, { useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+﻿import { useMemo, useState } from 'react';
+import { readStudyPackFile } from '../services/exportStudyPack';
 
-// Configure pdfjs worker (the CDN URL works in most dev setups)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+const MIN_SOURCE_LENGTH = 120;
+async function fetchUrlContents(rawUrl) {
+  const parsedUrl = new URL(rawUrl);
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error('Only HTTP and HTTPS URLs are supported');
+  }
 
-export default function SourceIngest() {
-  const [activeTab, setActiveTab] = useState('text'); // text | url | pdf
+  const encodedUrl = encodeURIComponent(parsedUrl.toString());
+  const endpoints = [
+    `/api/scrape?url=${encodedUrl}`,
+    `https://api.allorigins.win/get?url=${encodedUrl}`,
+  ];
+
+  let lastError;
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error(`URL fetch failed: ${response.status}`);
+      const data = await response.json();
+      if (data?.contents) return data.contents;
+      throw new Error('Response did not include contents');
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Could not fetch URL');
+}
+
+function extractReadableTextFromHtml(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html || '', 'text/html');
+  doc.querySelectorAll('script, style, nav, footer, header, noscript, svg').forEach((node) => node.remove());
+  return doc.body.textContent.replace(/\s+/g, ' ').trim();
+}
+
+export default function SourceIngest({ onGenerate, onImportPack, isLoading = false, adaptiveProfile }) {
+  const [activeTab, setActiveTab] = useState('text');
   const [textInput, setTextInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
-  const [pdfFile, setPdfFile] = useState(null);
-  const [pdfUploading, setPdfUploading] = useState(false);
-  const [pdfProgress, setPdfProgress] = useState(0);
+  const [levelMode, setLevelMode] = useState('adaptive');
+  const [difficulty, setDifficulty] = useState(adaptiveProfile?.recommendedDifficulty || 'Medio');
+  const [questionCount, setQuestionCount] = useState(adaptiveProfile?.questionCount || 6);
+  const [extracting, setExtracting] = useState(false);
+  const [importingPack, setImportingPack] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [sourceLabel, setSourceLabel] = useState('Texto pegado');
+  const [error, setError] = useState('');
 
-  // ---------- Text tab ----------
-  const handleTextChange = e => setTextInput(e.target.value);
+  const activeDifficulty = levelMode === 'adaptive'
+    ? adaptiveProfile?.recommendedDifficulty || difficulty
+    : difficulty;
+  const activeQuestionCount = levelMode === 'adaptive'
+    ? adaptiveProfile?.questionCount || questionCount
+    : questionCount;
 
-  // ---------- PDF handling ----------
-  const extractPdfText = async file => {
+  const sourceStats = useMemo(() => {
+    const words = textInput.trim().split(/\s+/).filter(Boolean).length;
+    const minutes = Math.max(1, Math.ceil(words / 180));
+    return { words, minutes };
+  }, [textInput]);
+
+  const canGenerate = textInput.trim().length >= MIN_SOURCE_LENGTH && typeof onGenerate === 'function';
+
+  const extractPdfText = async (file) => {
+    const [{ default: pdfWorkerUrl }, pdfjsLib] = await Promise.all([
+      import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+    ]);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
     let fullText = '';
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items.map(item => item.str).join(' ');
-      fullText += pageText + '\n';
+      const pageText = textContent.items.map((item) => item.str).join(' ');
+      fullText += `${pageText}\n`;
+      setProgress(Math.round((pageNum / pdf.numPages) * 100));
     }
+
     return fullText;
   };
 
-  const handlePdfUpload = async e => {
-    const file = e.target.files[0];
+  const handlePdfUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-    setPdfFile(file);
-    setPdfUploading(true);
-    setPdfProgress(0);
 
-    // Simulated progress bar – real extraction runs in background
-    const progressInterval = setInterval(() => {
-      setPdfProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 150);
+    setError('');
+    setExtracting(true);
+    setProgress(5);
+    setSourceLabel(file.name);
 
     try {
       const extracted = await extractPdfText(file);
-      setTextInput(`Contenido extraído del PDF "${file.name}":\n\n${extracted}`);
+      setTextInput(`Fuente: ${file.name}\n\n${extracted.trim()}`);
       setActiveTab('text');
     } catch (err) {
       console.error('PDF extraction error', err);
-      setTextInput('Error al extraer el texto del PDF.');
+      setError('No pude leer ese PDF. Prueba con un PDF con texto seleccionable o pega el contenido manualmente.');
     } finally {
-      clearInterval(progressInterval);
-      setPdfProgress(100);
-      setPdfUploading(false);
+      setProgress(100);
+      setExtracting(false);
     }
   };
 
-  // ---------- URL scraping ----------
-  const handleUrlScrape = async e => {
-    e.preventDefault();
-    if (!urlInput) return;
-    setPdfUploading(true); // reuse loader UI
-    setPdfProgress(30);
+  const handlePackUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || typeof onImportPack !== 'function') return;
+
+    setError('');
+    setImportingPack(true);
+
     try {
-      // Use a CORS proxy to avoid browser same-origin restrictions
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`;
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      const html = data.contents;
-      // Simple extraction: strip tags – not perfect but gives readable text
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const articleText = doc.body.textContent.replace(/\s+/g, ' ').trim();
-      setTextInput(`Contenido extraído de la URL "${urlInput}":\n\n${articleText.slice(0, 5000)}`);
+      const pack = await readStudyPackFile(file);
+      await onImportPack(pack.set);
+    } catch (err) {
+      console.error('Pack import error', err);
+      setError(err.message || 'No pude importar ese pack.');
+    } finally {
+      setImportingPack(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleUrlScrape = async (event) => {
+    event.preventDefault();
+    if (!urlInput.trim()) return;
+
+    setError('');
+    setExtracting(true);
+    setProgress(30);
+    setSourceLabel(urlInput.trim());
+
+    try {
+      const html = await fetchUrlContents(urlInput.trim());
+      const articleText = extractReadableTextFromHtml(html);
+
+      if (articleText.length < MIN_SOURCE_LENGTH) {
+        throw new Error('Extracted text is too short');
+      }
+
+      setTextInput(`Fuente: ${urlInput.trim()}\n\n${articleText.slice(0, 9000)}`);
       setActiveTab('text');
-      setPdfProgress(100);
+      setProgress(100);
     } catch (err) {
       console.error('URL fetch error', err);
-      setTextInput('Error al obtener el contenido de la URL.');
-      setPdfProgress(100);
+      setError('No pude extraer esa URL desde el navegador. Pega el texto o prueba con otra fuente publica.');
     } finally {
-      setPdfUploading(false);
+      setExtracting(false);
     }
+  };
+
+  const handleGenerate = (event) => {
+    event.preventDefault();
+    if (!canGenerate) return;
+
+    onGenerate({
+      text: textInput.trim(),
+      difficulty: activeDifficulty,
+      preferences: {
+        levelMode,
+        questionCount: Number(activeQuestionCount),
+        sourceLabel,
+      },
+    });
   };
 
   return (
-    <div className="container bg-glass p-4">
-      <h2 className="mt-2 mb-2">💡 Ingesta de Fuente</h2>
-      {/* Tab selector */}
-      <div className="flex-center mb-2">
-        {['text', 'url', 'pdf'].map(tab => (
+    <form onSubmit={handleGenerate} className="source-studio">
+      <div className="source-studio__header">
+        <div>
+          <p className="eyebrow">Motor de creacion</p>
+          <h2>Convierte cualquier fuente en un entrenamiento jugable</h2>
+        </div>
+        <div className="adaptive-pill">
+          <span>{levelMode === 'adaptive' ? 'Adaptativa' : 'Fija'}</span>
+          <strong>{activeDifficulty}</strong>
+        </div>
+      </div>
+
+      <div className="source-tabs" role="tablist" aria-label="Tipo de fuente">
+        {[
+          ['text', 'Texto'],
+          ['url', 'URL'],
+          ['pdf', 'PDF'],
+          ['pack', 'Pack'],
+        ].map(([id, label]) => (
           <button
-            key={tab}
-            className={`btn ${activeTab === tab ? 'bg-primary-dark' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            type="button"
+            key={id}
+            className={activeTab === id ? 'is-active' : ''}
+            onClick={() => setActiveTab(id)}
           >
-            {tab === 'text' && 'Texto'}
-            {tab === 'url' && 'URL'}
-            {tab === 'pdf' && 'PDF'}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Content per tab */}
       {activeTab === 'text' && (
         <textarea
           value={textInput}
-          onChange={handleTextChange}
+          onChange={(event) => {
+            setTextInput(event.target.value);
+            setSourceLabel('Texto pegado');
+          }}
           rows={12}
-          className="w-full p-2 border rounded bg-glass"
-          placeholder="Pega o escribe texto aquí…"
+          className="source-textarea"
+          placeholder="Pega apuntes, un articulo, una transcripcion o el material de clase. StudyQuest extrae conceptos y crea juegos de practica."
         />
       )}
 
       {activeTab === 'url' && (
-        <form onSubmit={handleUrlScrape} className="flex flex-col gap-2">
-          <input
-            type="url"
-            value={urlInput}
-            onChange={e => setUrlInput(e.target.value)}
-            placeholder="Introduce una URL…"
-            className="p-2 border rounded bg-glass"
-            required
-          />
-          <button type="submit" className="btn" disabled={pdfUploading}>
-            {pdfUploading ? 'Obteniendo...' : 'Obtener contenido'}
-          </button>
-        </form>
+        <div className="source-panel">
+          <label htmlFor="source-url">URL publica</label>
+          <div className="source-inline">
+            <input
+              id="source-url"
+              type="url"
+              value={urlInput}
+              onChange={(event) => setUrlInput(event.target.value)}
+              placeholder="https://..."
+              required
+            />
+            <button type="button" onClick={handleUrlScrape} disabled={extracting}>
+              {extracting ? 'Leyendo' : 'Extraer'}
+            </button>
+          </div>
+        </div>
       )}
 
       {activeTab === 'pdf' && (
-        <div className="flex flex-col gap-2">
-          <input type="file" accept="application/pdf" onChange={handlePdfUpload} />
-          {pdfUploading && (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-200 rounded h-2 overflow-hidden">
-                <div
-                  className="bg-primary h-2"
-                  style={{ width: `${pdfProgress}%` }}
-                />
-              </div>
-              <span>{pdfProgress}%</span>
+        <div className="source-panel">
+          <label htmlFor="source-pdf">Sube un PDF con texto seleccionable</label>
+          <input id="source-pdf" type="file" accept="application/pdf" onChange={handlePdfUpload} />
+          {extracting && (
+            <div className="meter" aria-label="Progreso de lectura del PDF">
+              <span style={{ width: `${progress}%` }} />
             </div>
           )}
         </div>
       )}
-    </div>
+
+      {activeTab === 'pack' && (
+        <div className="source-panel">
+          <label htmlFor="source-pack">Importa un pack StudyQuest exportado</label>
+          <input
+            id="source-pack"
+            type="file"
+            accept="application/json,.json,.studyquest.json"
+            onChange={handlePackUpload}
+            disabled={importingPack}
+          />
+          <p>{importingPack ? 'Importando pack...' : 'Restaura juegos, conceptos y configuracion sin volver a generar.'}</p>
+        </div>
+      )}
+
+      {error && <p className="source-error">{error}</p>}
+
+      <div className="level-toggle" role="group" aria-label="Modo de dificultad">
+        <button
+          type="button"
+          className={levelMode === 'adaptive' ? 'is-active' : ''}
+          onClick={() => setLevelMode('adaptive')}
+        >
+          Adaptativa
+        </button>
+        <button
+          type="button"
+          className={levelMode === 'fixed' ? 'is-active' : ''}
+          onClick={() => setLevelMode('fixed')}
+        >
+          Fija
+        </button>
+      </div>
+
+      <div className="source-controls">
+        <label>
+          Dificultad
+          <select
+            value={activeDifficulty}
+            onChange={(event) => setDifficulty(event.target.value)}
+            disabled={levelMode === 'adaptive'}
+          >
+            <option>Facil</option>
+            <option>Medio</option>
+            <option>Dificil</option>
+          </select>
+        </label>
+        <label>
+          Preguntas por modo
+          <input
+            type="number"
+            min="4"
+            max="10"
+            value={activeQuestionCount}
+            onChange={(event) => setQuestionCount(event.target.value)}
+            disabled={levelMode === 'adaptive'}
+          />
+        </label>
+        <div className="source-stat">
+          <span>{sourceStats.words}</span>
+          palabras / {sourceStats.minutes} min
+        </div>
+      </div>
+
+      <div className="source-actions">
+        <p>
+          {levelMode === 'adaptive'
+            ? adaptiveProfile?.focus || 'Crea un set con niveles ajustados a tu progreso.'
+            : 'Modo fijo activo: se respetara la dificultad elegida para este set.'}
+        </p>
+        <button type="submit" disabled={!canGenerate || isLoading}>
+          {isLoading ? 'Generando juegos...' : 'Generar juegos'}
+        </button>
+      </div>
+
+      {!canGenerate && activeTab !== 'pack' && (
+        <p className="source-help">
+          Necesitas al menos {MIN_SOURCE_LENGTH} caracteres de material para generar un set util.
+        </p>
+      )}
+    </form>
   );
 }

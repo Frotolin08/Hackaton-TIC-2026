@@ -1,5 +1,4 @@
-import React from 'react';
-
+﻿
 export function LobbySkeleton() {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 animate-pulse">
@@ -45,3 +44,4 @@ export function GamePlaySkeleton() {
     </div>
   );
 }
+
